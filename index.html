@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Negotiation Tracker</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --surface2: #0f3460;
+    --border: #334;
+    --text: #e0e0e0;
+    --text-dim: #888;
+    --gold: #f5c842;
+    --gold-dim: #7a6421;
+    --blue: #4fc3f7;
+    --blue-dim: #1a5276;
+    --green: #66bb6a;
+    --red: #ef5350;
+    --red-dim: #7f2a2a;
+    --highlight: #f5c84233;
+    --purple: #b388ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; padding: 1rem;
+  }
+  h1 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--gold); }
+  h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 0.5rem; }
+  h3 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin-bottom: 0.3rem; }
+
+  /* ─── Top bar ─── */
+  .topbar { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .topbar h1 { white-space: nowrap; }
+  .field { display: flex; align-items: center; gap: 0.4rem; }
+  .field label { font-size: 0.75rem; text-transform: uppercase; color: var(--text-dim); white-space: nowrap; }
+  .field input, .field select {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    padding: 0.3rem 0.5rem; border-radius: 4px; font-size: 0.9rem;
+  }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--gold); }
+  #npcName { width: 180px; }
+  #attitude { width: 130px; cursor: pointer; }
+  .request-field { flex: 1 1 300px; }
+  .request-field input { width: 100%; }
+  .topbar-actions { display: flex; gap: 0.5rem; margin-left: auto; }
+
+  /* ─── Buttons ─── */
+  .btn {
+    padding: 0.4rem 1rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface2); color: var(--text);
+    transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .btn:hover { border-color: var(--gold); color: var(--gold); }
+  .btn.btn-danger:hover { border-color: var(--red); color: var(--red); }
+  .btn.active { border-color: var(--gold); color: var(--gold); background: #f5c84215; }
+
+  /* ─── Main grid ─── */
+  .main { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+  .full-width { grid-column: 1 / -1; }
+
+  /* ─── Scene / Narrator panel ─── */
+  .narrator-panel { grid-column: 1 / -1; }
+  .scene-tabs { display: flex; gap: 0.4rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+  .scene-tab {
+    padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.75rem; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface2); color: var(--text-dim);
+    transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .scene-tab:hover { border-color: var(--purple); color: var(--purple); }
+  .scene-tab.active { border-color: var(--purple); color: var(--purple); background: #b388ff15; }
+  .narrator-text {
+    font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap;
+    max-height: 400px; overflow-y: auto; padding: 0.5rem;
+    background: var(--surface2); border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  .narrator-text:empty { display: none; }
+  .narrator-text:empty + .narrator-hint { display: block; }
+  .narrator-hint {
+    display: none; font-size: 0.8rem; color: var(--text-dim); font-style: italic;
+    padding: 0.5rem;
+  }
+  .narrator-label {
+    font-size: 0.7rem; text-transform: uppercase; color: var(--purple);
+    letter-spacing: 0.08em; margin-bottom: 0.3rem;
+  }
+  .narrator-dismiss {
+    float: right; background: none; border: none; color: var(--text-dim);
+    cursor: pointer; font-size: 0.8rem; padding: 0.2rem 0.4rem;
+  }
+  .narrator-dismiss:hover { color: var(--text); }
+
+  /* ─── Stat trackers ─── */
+  .stats-panel { grid-column: 1 / -1; display: flex; gap: 2rem; align-items: stretch; flex-wrap: wrap; }
+  .stat-tracker { flex: 1 1 200px; display: flex; flex-direction: column; align-items: center; }
+  .stat-tracker h2 { margin-bottom: 0.75rem; }
+  .stat-pips { display: flex; gap: 0.4rem; margin-bottom: 0.5rem; }
+  .pip {
+    width: 52px; height: 52px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; font-weight: bold; cursor: pointer;
+    transition: all 0.15s; border: 2px solid transparent; user-select: none;
+  }
+  .pip.interest-pip { background: var(--gold-dim); color: var(--gold-dim); }
+  .pip.interest-pip.active { background: var(--gold); color: #1a1a2e; box-shadow: 0 0 12px #f5c84266; }
+  .pip.interest-pip:hover { border-color: var(--gold); }
+  .pip.patience-pip { background: var(--blue-dim); color: var(--blue-dim); }
+  .pip.patience-pip.active { background: var(--blue); color: #1a1a2e; box-shadow: 0 0 12px #4fc3f766; }
+  .pip.patience-pip:hover { border-color: var(--blue); }
+  .stat-buttons { display: flex; gap: 0.5rem; margin-top: 0.3rem; }
+  .stat-btn {
+    background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 4px; padding: 0.2rem 0.8rem; font-size: 1.1rem; cursor: pointer; transition: all 0.15s;
+  }
+  .stat-btn:hover { border-color: var(--gold); }
+  .stat-label { font-size: 0.8rem; color: var(--text-dim); margin-top: 0.3rem; }
+
+  /* ─── End banner ─── */
+  .end-banner {
+    display: none; grid-column: 1 / -1; text-align: center;
+    padding: 1rem; border-radius: 8px; font-size: 1.1rem; font-weight: bold;
+  }
+  .end-banner.show { display: block; }
+  .end-banner .outcome-narration-btn {
+    display: inline-block; margin-top: 0.5rem; font-size: 0.8rem;
+    cursor: pointer; color: var(--gold); text-decoration: underline; background: none; border: none;
+  }
+  .end-banner.patience-zero { background: linear-gradient(135deg, var(--blue-dim), var(--surface)); border: 2px solid var(--blue); color: var(--blue); }
+  .end-banner.interest-max { background: linear-gradient(135deg, var(--gold-dim), var(--surface)); border: 2px solid var(--gold); color: var(--gold); }
+
+  /* ─── Outcomes panel ─── */
+  .outcomes-panel { grid-column: 1; }
+  .outcome-row {
+    display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.5rem;
+    border-radius: 6px; margin-bottom: 0.3rem; transition: all 0.2s;
+    border: 1px solid transparent; cursor: pointer;
+  }
+  .outcome-row.current { background: var(--highlight); border-color: var(--gold); }
+  .outcome-row:hover { background: #ffffff08; }
+  .outcome-level { font-weight: bold; font-size: 1.1rem; width: 1.5rem; text-align: center; flex-shrink: 0; padding-top: 0.15rem; }
+  .outcome-row.current .outcome-level { color: var(--gold); }
+  .outcome-label {
+    font-size: 0.75rem; font-weight: bold; text-transform: uppercase; white-space: nowrap;
+    flex-shrink: 0; width: 7rem; padding-top: 0.2rem;
+  }
+  .outcome-0 .outcome-label { color: var(--red); }
+  .outcome-1 .outcome-label { color: #ef8350; }
+  .outcome-2 .outcome-label { color: #efb350; }
+  .outcome-3 .outcome-label { color: #c8c840; }
+  .outcome-4 .outcome-label { color: var(--green); }
+  .outcome-5 .outcome-label { color: #43d943; }
+  .outcome-desc {
+    flex: 1; background: transparent; border: 1px solid transparent; color: var(--text);
+    font-size: 0.85rem; padding: 0.2rem 0.4rem; border-radius: 4px; resize: none;
+    overflow: hidden; font-family: inherit; line-height: 1.3;
+  }
+  .outcome-desc:hover { border-color: var(--border); }
+  .outcome-desc:focus { border-color: var(--gold); outline: none; background: var(--surface2); }
+  .outcome-narration-icon {
+    flex-shrink: 0; font-size: 0.75rem; color: var(--purple); cursor: pointer;
+    padding: 0.2rem; opacity: 0.5; transition: opacity 0.15s;
+  }
+  .outcome-narration-icon:hover { opacity: 1; }
+  .outcome-narration-icon.no-narration { display: none; }
+
+  /* ─── Right column ─── */
+  .right-col { grid-column: 2; display: flex; flex-direction: column; gap: 1rem; }
+
+  /* ─── Traits grid ─── */
+  .traits-grid { display: grid; grid-template-columns: auto 1fr auto; gap: 0.15rem 0.5rem; align-items: center; }
+  .trait-name { font-size: 0.9rem; padding: 0.2rem 0; }
+  .trait-btn {
+    padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.7rem; text-transform: uppercase;
+    cursor: pointer; border: 1px solid var(--border); background: var(--surface2);
+    color: var(--text-dim); transition: all 0.15s; text-align: center; min-width: 2.2rem;
+  }
+  .trait-btn.motivation { background: #1b4332; color: var(--green); border-color: var(--green); }
+  .trait-btn.motivation.used { color: #4a7a5a; border-color: #2d6b47; text-decoration: line-through; }
+  .trait-btn.pitfall { background: var(--red-dim); color: var(--red); border-color: var(--red); }
+  .trait-btn:hover { filter: brightness(1.2); }
+  .trait-btn.revealed { box-shadow: 0 0 6px var(--purple); }
+
+  /* ─── Quick Resolve ─── */
+  .resolve-grid { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.4rem; }
+  .resolve-label { font-size: 0.7rem; color: var(--text-dim); margin-top: 0.5rem; margin-bottom: 0.1rem; }
+
+  /* ─── Reveal panel (for Get a Read success) ─── */
+  .reveal-panel {
+    display: none; margin-top: 0.75rem; padding: 0.75rem;
+    background: var(--surface2); border: 1px solid var(--purple); border-radius: 6px;
+  }
+  .reveal-panel.show { display: block; }
+  .reveal-panel h3 { color: var(--purple); margin-bottom: 0.5rem; }
+  .reveal-btn {
+    display: block; width: 100%; text-align: left;
+    padding: 0.4rem 0.6rem; margin-bottom: 0.3rem;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text); font-size: 0.85rem; cursor: pointer; transition: all 0.15s;
+  }
+  .reveal-btn:hover { border-color: var(--purple); color: var(--purple); }
+  .reveal-btn.already-revealed { color: var(--text-dim); text-decoration: line-through; cursor: default; }
+
+  /* ─── Modifiers ─── */
+  .modifiers { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+  .mod-btn {
+    padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.75rem; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface2); color: var(--text-dim); transition: all 0.15s;
+  }
+  .mod-btn:hover { border-color: var(--gold); }
+  .mod-btn.active { border-color: var(--gold); color: var(--gold); background: #f5c84215; }
+
+  /* ─── Reference tables ─── */
+  .tables-toggle {
+    background: none; border: none; color: var(--gold); cursor: pointer;
+    font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 0.3rem 0; display: flex; align-items: center; gap: 0.4rem; width: 100%;
+  }
+  .tables-toggle:hover { color: #fff; }
+  .tables-toggle .arrow { transition: transform 0.2s; }
+  .tables-toggle .arrow.open { transform: rotate(90deg); }
+  .tables-content { display: none; margin-top: 0.75rem; }
+  .tables-content.open { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+  .ref-table { border-radius: 6px; overflow: hidden; font-size: 0.8rem; background: var(--surface2); border: 1px solid var(--border); }
+  .ref-table-header { padding: 0.4rem 0.6rem; font-weight: bold; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+  .ref-table-row { display: flex; padding: 0.3rem 0.6rem; gap: 0.5rem; }
+  .ref-table-row:nth-child(odd) { background: #ffffff08; }
+  .ref-roll { width: 3rem; flex-shrink: 0; font-weight: bold; }
+  .ref-effect { flex: 1; }
+  .table-motivation .ref-table-header { background: #1b4332; color: var(--green); }
+  .table-pitfall .ref-table-header { background: var(--red-dim); color: var(--red); }
+  .table-neither .ref-table-header { background: #3a3a1a; color: #c8c840; }
+  .table-read .ref-table-header { background: var(--surface2); color: var(--blue); }
+  .table-lie .ref-table-header { background: #4a2a4a; color: #c87ac8; }
+
+  /* ─── Log ─── */
+  .log-entries { max-height: 120px; overflow-y: auto; font-size: 0.8rem; color: var(--text-dim); }
+  .log-entry { padding: 0.15rem 0; border-bottom: 1px solid #ffffff08; }
+
+  /* ─── Pitfall chooser (popup when pitfall auto-fail) ─── */
+  .pitfall-chooser {
+    display: none; margin-top: 0.5rem; padding: 0.5rem;
+    background: var(--surface2); border: 1px solid var(--red); border-radius: 6px;
+  }
+  .pitfall-chooser.show { display: block; }
+  .pitfall-chooser h3 { color: var(--red); margin-bottom: 0.4rem; }
+  .pitfall-choose-btn {
+    padding: 0.3rem 0.6rem; margin-right: 0.3rem; margin-bottom: 0.3rem;
+    background: var(--red-dim); border: 1px solid var(--red); border-radius: 4px;
+    color: var(--red); font-size: 0.8rem; cursor: pointer;
+  }
+  .pitfall-choose-btn:hover { filter: brightness(1.3); }
+
+  .mot-chooser {
+    display: none; margin-top: 0.5rem; padding: 0.5rem;
+    background: var(--surface2); border: 1px solid var(--green); border-radius: 6px;
+  }
+  .mot-chooser.show { display: block; }
+  .mot-chooser h3 { color: var(--green); margin-bottom: 0.4rem; }
+  .mot-choose-btn {
+    padding: 0.3rem 0.6rem; margin-right: 0.3rem; margin-bottom: 0.3rem;
+    background: #1b4332; border: 1px solid var(--green); border-radius: 4px;
+    color: var(--green); font-size: 0.8rem; cursor: pointer;
+  }
+  .mot-choose-btn:hover { filter: brightness(1.3); }
+  .mot-choose-btn.used { opacity: 0.4; text-decoration: line-through; cursor: default; }
+
+  @media (max-width: 900px) {
+    .main { grid-template-columns: 1fr; }
+    .full-width, .stats-panel, .outcomes-panel, .right-col, .narrator-panel { grid-column: 1; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Encounter script (loaded before main logic) -->
+<script src="encounters/wands_light_project.js"></script>
+
+<div class="topbar">
+  <h1>Negotiation Tracker</h1>
+  <div class="field">
+    <label for="npcName">NPC</label>
+    <input type="text" id="npcName" placeholder="Name...">
+  </div>
+  <div class="field">
+    <label for="attitude">Attitude</label>
+    <select id="attitude">
+      <option value="">— Set —</option>
+      <option value="hostile">Hostile</option>
+      <option value="suspicious">Suspicious</option>
+      <option value="neutral">Neutral</option>
+      <option value="open">Open</option>
+      <option value="friendly">Friendly</option>
+      <option value="trusting">Trusting</option>
+    </select>
+  </div>
+  <div class="field request-field">
+    <label for="request">Request</label>
+    <input type="text" id="request" placeholder="The party's plausible request...">
+  </div>
+  <div class="topbar-actions">
+    <button class="btn" onclick="loadEncounter()" id="loadBtn" style="display:none;">Load Encounter</button>
+    <button class="btn" onclick="undoLast()" title="Undo last action">Undo</button>
+    <button class="btn btn-danger" onclick="resetAll()">New</button>
+  </div>
+</div>
+
+<div class="main">
+  <!-- End state banner -->
+  <div class="end-banner" id="endBanner"></div>
+
+  <!-- Narrator / Scene panel -->
+  <div class="panel narrator-panel" id="narratorPanel">
+    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+      <h2 style="margin-bottom: 0;">Narrator</h2>
+      <div class="scene-tabs" id="sceneTabs"></div>
+    </div>
+    <div class="narrator-label" id="narratorLabel"></div>
+    <div class="narrator-text" id="narratorText"></div>
+    <div class="narrator-hint" id="narratorHint">Click a scene tab above, or resolve an action to see reaction text here.</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="panel stats-panel">
+    <div class="stat-tracker">
+      <h2 style="color: var(--gold);">Interest</h2>
+      <div class="stat-pips" id="interestPips"></div>
+      <div class="stat-buttons">
+        <button class="stat-btn" onclick="adjustStat('interest', -1)">-</button>
+        <button class="stat-btn" onclick="adjustStat('interest', 1)">+</button>
+      </div>
+    </div>
+    <div class="stat-tracker">
+      <h2 style="color: var(--blue);">Patience</h2>
+      <div class="stat-pips" id="patiencePips"></div>
+      <div class="stat-buttons">
+        <button class="stat-btn" onclick="adjustStat('patience', -1)">-</button>
+        <button class="stat-btn" onclick="adjustStat('patience', 1)">+</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Outcomes -->
+  <div class="panel outcomes-panel">
+    <h2>Outcomes by Interest Level</h2>
+    <div id="outcomesList"></div>
+  </div>
+
+  <!-- Right column -->
+  <div class="right-col">
+    <div class="panel">
+      <h2>Motivations &amp; Pitfalls</h2>
+      <div class="traits-grid" id="traitsGrid"></div>
+      <div id="customTraits"></div>
+      <button class="btn" style="margin-top: 0.5rem; font-size: 0.7rem;" onclick="addCustomTrait()">+ Custom Trait</button>
+      <h3 style="margin-top: 0.75rem;">Situational Modifiers</h3>
+      <div class="modifiers">
+        <button class="mod-btn" data-mod="infamous" onclick="toggleMod(this)" title="Interest -1">Infamous</button>
+        <button class="mod-btn" data-mod="famous" onclick="toggleMod(this)" title="Patience +1">Famous</button>
+        <button class="mod-btn" data-mod="lang1" onclick="toggleMod(this)" title="Patience +1">1 Speaker</button>
+        <button class="mod-btn" data-mod="lang3" onclick="toggleMod(this)" title="Patience +2">3+ Speakers</button>
+      </div>
+    </div>
+
+    <!-- Quick Resolve -->
+    <div class="panel">
+      <h2>Quick Resolve</h2>
+
+      <div class="resolve-label">Get a Read (Insight)</div>
+      <div class="resolve-grid">
+        <button class="btn" onclick="quickResolve('read-fail')">Fail</button>
+        <button class="btn" onclick="quickResolve('read-partial')">Partial</button>
+        <button class="btn" onclick="quickResolve('read-success')">Success</button>
+      </div>
+
+      <div class="resolve-label" style="color: var(--green);">Appeal to Motivation</div>
+      <div class="resolve-grid">
+        <button class="btn" style="border-color:#1b4332;color:var(--green)" onclick="quickResolve('mot-fail')">Fail</button>
+        <button class="btn" style="border-color:#1b4332;color:var(--green)" onclick="quickResolve('mot-partial')">Partial</button>
+        <button class="btn" style="border-color:#1b4332;color:var(--green)" onclick="quickResolve('mot-success')">Success</button>
+      </div>
+
+      <div class="resolve-label" style="color: var(--red);">Appeal to Pitfall</div>
+      <div class="resolve-grid">
+        <button class="btn" style="border-color:var(--red-dim);color:var(--red)" onclick="quickResolve('pitfall')">Auto-Fail</button>
+      </div>
+      <div class="pitfall-chooser" id="pitfallChooser">
+        <h3>Which pitfall was triggered?</h3>
+        <div id="pitfallChoices"></div>
+      </div>
+      <div class="mot-chooser" id="motChooser">
+        <h3>Which motivation was appealed?</h3>
+        <div id="motChoices"></div>
+      </div>
+
+      <div class="resolve-label" style="color: #c8c840;">Appeal to Neither</div>
+      <div class="resolve-grid">
+        <button class="btn" style="border-color:#3a3a1a;color:#c8c840" onclick="quickResolve('neut-fail')">Fail</button>
+        <button class="btn" style="border-color:#3a3a1a;color:#c8c840" onclick="quickResolve('neut-partial')">Partial</button>
+        <button class="btn" style="border-color:#3a3a1a;color:#c8c840" onclick="quickResolve('neut-success')">Success</button>
+      </div>
+
+      <div style="margin-top: 0.5rem;">
+        <label style="font-size: 0.75rem; color: var(--text-dim); display: flex; align-items: center; gap: 0.3rem;">
+          <input type="checkbox" id="lyingCheck"> Lying (stack deception penalty on fail)
+        </label>
+      </div>
+
+      <!-- Reveal panel for Get a Read success -->
+      <div class="reveal-panel" id="revealPanel">
+        <h3>Player learns a trait — choose which to reveal:</h3>
+        <div id="revealChoices"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reference tables -->
+  <div class="panel full-width">
+    <button class="tables-toggle" onclick="toggleTables()">
+      <span class="arrow" id="tablesArrow">&#9654;</span> Argument Resolution Tables
+    </button>
+    <div class="tables-content" id="tablesContent">
+      <div class="ref-table table-read">
+        <div class="ref-table-header">Get a Read (Insight)</div>
+        <div class="ref-table-row"><span class="ref-roll">&le;11</span><span class="ref-effect">Patience -1</span></div>
+        <div class="ref-table-row"><span class="ref-roll">12+</span><span class="ref-effect">Hard to read (no effect)</span></div>
+        <div class="ref-table-row"><span class="ref-roll">17+</span><span class="ref-effect">Learn 1 Motivation or Pitfall</span></div>
+      </div>
+      <div class="ref-table table-motivation">
+        <div class="ref-table-header">Appeal to Motivation (Persuasion/Intimidation)</div>
+        <div class="ref-table-row"><span class="ref-roll">&le;11</span><span class="ref-effect">Patience -1</span></div>
+        <div class="ref-table-row"><span class="ref-roll">12+</span><span class="ref-effect">Interest +1, Patience -1</span></div>
+        <div class="ref-table-row"><span class="ref-roll">17+</span><span class="ref-effect">Interest +1</span></div>
+      </div>
+      <div class="ref-table table-pitfall">
+        <div class="ref-table-header">Appeal to Pitfall</div>
+        <div class="ref-table-row"><span class="ref-roll">Auto</span><span class="ref-effect">Interest -1, Patience -1 (no roll)</span></div>
+      </div>
+      <div class="ref-table table-neither">
+        <div class="ref-table-header">Appeal to Neither (Persuasion/Intimidation)</div>
+        <div class="ref-table-row"><span class="ref-roll">&le;11</span><span class="ref-effect">Interest -1, Patience -1</span></div>
+        <div class="ref-table-row"><span class="ref-roll">12+</span><span class="ref-effect">Patience -1</span></div>
+        <div class="ref-table-row"><span class="ref-roll">17+</span><span class="ref-effect">Interest +1, Patience -1</span></div>
+      </div>
+      <div class="ref-table table-lie">
+        <div class="ref-table-header">Lying (Deception — stacks with above)</div>
+        <div class="ref-table-row"><span class="ref-roll">Fail</span><span class="ref-effect">If no Interest gained: additional Interest -1</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="panel full-width">
+    <h2>Action Log</h2>
+    <div class="log-entries" id="logEntries">
+      <div class="log-entry" style="font-style: italic;">Negotiation hasn't started yet.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ATTITUDES = {
+  hostile:    { interest: 1, patience: 2 },
+  suspicious: { interest: 2, patience: 2 },
+  neutral:    { interest: 2, patience: 3 },
+  open:       { interest: 3, patience: 3 },
+  friendly:   { interest: 3, patience: 4 },
+  trusting:   { interest: 3, patience: 5 },
+};
+
+const TRAITS = [
+  'Benevolence', 'Discovery', 'Freedom', 'Greed',
+  'Higher Authority', 'Justice', 'Legacy', 'Peace',
+  'Power', 'Protection', 'Revelry', 'Vengeance'
+];
+
+const OUTCOMES = [
+  { label: 'No, and...' },
+  { label: 'No' },
+  { label: 'No, but...' },
+  { label: 'Yes, but...' },
+  { label: 'Yes' },
+  { label: 'Yes, and...' },
+];
+
+let state = {
+  interest: 2,
+  patience: 3,
+  traits: {},
+  usedMotivations: new Set(),
+  revealedTraits: new Set(),
+  outcomes: ['', '', '', '', '', ''],
+  history: [],
+  log: [],
+  encounter: null,
+  outcomeNarrations: [],
+};
+
+TRAITS.forEach(t => state.traits[t] = null);
+
+function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+
+function saveUndo() {
+  state.history.push({
+    interest: state.interest,
+    patience: state.patience,
+    usedMotivations: new Set(state.usedMotivations),
+  });
+  if (state.history.length > 50) state.history.shift();
+}
+
+function undoLast() {
+  if (state.history.length === 0) return;
+  const prev = state.history.pop();
+  state.interest = prev.interest;
+  state.patience = prev.patience;
+  state.usedMotivations = prev.usedMotivations;
+  addLog('Undo', '');
+  render();
+}
+
+function adjustStat(stat, delta) {
+  saveUndo();
+  if (stat === 'interest') state.interest = clamp(state.interest + delta, 0, 5);
+  else state.patience = clamp(state.patience + delta, 0, 5);
+  addLog(`Manual: ${stat}`, delta > 0 ? `+${delta}` : `${delta}`);
+  render();
+}
+
+// ─── NARRATOR ──────────────────────────────────────────
+
+function showNarrator(label, text) {
+  const el = document.getElementById('narratorText');
+  const lbl = document.getElementById('narratorLabel');
+  const hint = document.getElementById('narratorHint');
+  lbl.textContent = label;
+  el.textContent = text;
+  el.style.display = 'block';
+  hint.style.display = 'none';
+  // Deactivate scene tabs
+  document.querySelectorAll('.scene-tab').forEach(t => t.classList.remove('active'));
+}
+
+function showScene(key) {
+  if (!state.encounter || !state.encounter.scenes[key]) return;
+  const scene = state.encounter.scenes[key];
+  showNarrator(scene.title, scene.text);
+  // Activate tab
+  document.querySelectorAll('.scene-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.scene === key);
+  });
+}
+
+function showOutcomeNarration(level) {
+  if (!state.encounter || !state.encounter.outcomeNarrations[level]) return;
+  showNarrator(`Outcome: Interest ${level} — ${OUTCOMES[level].label}`, state.encounter.outcomeNarrations[level]);
+}
+
+function buildSceneTabs() {
+  const container = document.getElementById('sceneTabs');
+  container.innerHTML = '';
+  if (!state.encounter || !state.encounter.scenes) return;
+  for (const [key, scene] of Object.entries(state.encounter.scenes)) {
+    const btn = document.createElement('button');
+    btn.className = 'scene-tab';
+    btn.textContent = scene.title;
+    btn.dataset.scene = key;
+    btn.onclick = () => showScene(key);
+    container.appendChild(btn);
+  }
+}
+
+// ─── REVEAL SYSTEM ─────────────────────────────────────
+
+function showRevealPanel() {
+  const panel = document.getElementById('revealPanel');
+  const choices = document.getElementById('revealChoices');
+  choices.innerHTML = '';
+
+  // Build list of all motivations and pitfalls that can be revealed
+  const allTraits = [];
+  for (const [trait, type] of Object.entries(state.traits)) {
+    if (type === 'motivation' || type === 'pitfall') {
+      allTraits.push({ trait, type });
+    }
+  }
+
+  if (allTraits.length === 0) {
+    panel.classList.remove('show');
+    return;
+  }
+
+  allTraits.forEach(({ trait, type }) => {
+    const btn = document.createElement('button');
+    btn.className = 'reveal-btn';
+    const revealed = state.revealedTraits.has(trait);
+    if (revealed) btn.classList.add('already-revealed');
+    const typeLabel = type === 'motivation' ? '(M)' : '(P)';
+    btn.textContent = revealed ? `${trait} ${typeLabel} — already revealed` : `Reveal: ${trait} ${typeLabel}`;
+    if (!revealed) {
+      btn.onclick = () => revealTrait(trait);
+    }
+    choices.appendChild(btn);
+  });
+
+  panel.classList.add('show');
+}
+
+function revealTrait(trait) {
+  state.revealedTraits.add(trait);
+  const enc = state.encounter;
+  if (enc && enc.reveals && enc.reveals[trait]) {
+    showNarrator(`Revealed: ${trait}`, enc.reveals[trait]);
+  } else {
+    const type = state.traits[trait];
+    showNarrator(`Revealed: ${trait}`, `The party learns that ${trait} is a ${type} for this NPC.`);
+  }
+  document.getElementById('revealPanel').classList.remove('show');
+  addLog(`Revealed: ${trait}`, `(${state.traits[trait]})`);
+  render();
+}
+
+function hideRevealPanel() {
+  document.getElementById('revealPanel').classList.remove('show');
+}
+
+function hidePitfallChooser() {
+  document.getElementById('pitfallChooser').classList.remove('show');
+}
+
+function hideMotChooser() {
+  document.getElementById('motChooser').classList.remove('show');
+}
+
+function showMotChooser(action) {
+  const motivations = Object.entries(state.traits).filter(([t, v]) => v === 'motivation');
+  if (motivations.length === 0) {
+    // No motivations set, just resolve without marking
+    resolveMotivation(action, null);
+    return;
+  }
+  const chooser = document.getElementById('motChooser');
+  const choices = document.getElementById('motChoices');
+  choices.innerHTML = '';
+  motivations.forEach(([trait]) => {
+    const btn = document.createElement('button');
+    btn.className = 'mot-choose-btn';
+    const used = state.usedMotivations.has(trait);
+    if (used) {
+      btn.classList.add('used');
+      btn.textContent = `${trait} (already used)`;
+    } else {
+      btn.textContent = trait;
+      btn.onclick = () => { hideMotChooser(); resolveMotivation(action, trait); };
+    }
+    choices.appendChild(btn);
+  });
+  chooser.classList.add('show');
+}
+
+function resolveMotivation(action, traitName) {
+  saveUndo();
+  const lying = document.getElementById('lyingCheck').checked;
+  let interestDelta = 0;
+  let patienceDelta = 0;
+  let desc = '';
+  let reactionKey = action;
+
+  switch (action) {
+    case 'mot-fail':
+      patienceDelta = -1;
+      desc = 'Appeal Motivation: Fail — Patience -1';
+      break;
+    case 'mot-partial':
+      interestDelta = 1; patienceDelta = -1;
+      desc = 'Appeal Motivation: Partial — Interest +1, Patience -1';
+      if (traitName) { state.usedMotivations.add(traitName); desc += ` [${traitName} used]`; }
+      break;
+    case 'mot-success':
+      interestDelta = 1;
+      desc = 'Appeal Motivation: Success — Interest +1';
+      if (traitName) { state.usedMotivations.add(traitName); desc += ` [${traitName} used]`; }
+      break;
+  }
+
+  if (lying && interestDelta <= 0) {
+    interestDelta -= 1;
+    desc += ' + LIE CAUGHT: Interest -1';
+    reactionKey = 'lie-caught';
+  }
+
+  state.interest = clamp(state.interest + interestDelta, 0, 5);
+  state.patience = clamp(state.patience + patienceDelta, 0, 5);
+  addLog(desc, '');
+  document.getElementById('lyingCheck').checked = false;
+
+  const enc = state.encounter;
+  if (enc && enc.reactions) {
+    const reaction = enc.reactions[reactionKey];
+    if (reaction) {
+      const labels = {
+        'mot-fail': 'Appeal to Motivation: Failure',
+        'mot-partial': 'Appeal to Motivation: Partial Success',
+        'mot-success': 'Appeal to Motivation: Success',
+        'lie-caught': 'Lie Caught!',
+      };
+      showNarrator(labels[reactionKey] || reactionKey, reaction);
+    }
+  }
+  render();
+}
+
+// ─── QUICK RESOLVE ─────────────────────────────────────
+
+function quickResolve(action) {
+  hideRevealPanel();
+  hidePitfallChooser();
+  hideMotChooser();
+
+  // Pitfall: show chooser if multiple pitfalls
+  if (action === 'pitfall') {
+    const pitfalls = Object.entries(state.traits).filter(([t, v]) => v === 'pitfall');
+    if (pitfalls.length > 1 && state.encounter) {
+      showPitfallChooser(pitfalls);
+      return;
+    } else if (pitfalls.length === 1) {
+      resolvePitfall(pitfalls[0][0]);
+      return;
+    }
+    // No specific pitfalls set, just do generic
+    resolvePitfall(null);
+    return;
+  }
+
+  // Motivation: show chooser for partial/success (to mark as used)
+  if (action === 'mot-success' || action === 'mot-partial') {
+    showMotChooser(action);
+    return;
+  }
+  // Motivation fail: still use chooser so it logs which motivation was attempted
+  if (action === 'mot-fail') {
+    showMotChooser(action);
+    return;
+  }
+
+  saveUndo();
+  const lying = document.getElementById('lyingCheck').checked;
+  let desc = '';
+  let interestDelta = 0;
+  let patienceDelta = 0;
+  let reactionKey = action;
+
+  switch (action) {
+    case 'read-fail':
+      patienceDelta = -1;
+      desc = 'Get a Read: Fail — Patience -1';
+      break;
+    case 'read-partial':
+      desc = 'Get a Read: Partial — Hard to read';
+      break;
+    case 'read-success':
+      desc = 'Get a Read: Success — Reveal a trait';
+      break;
+    case 'neut-fail':
+      interestDelta = -1; patienceDelta = -1;
+      desc = 'Appeal Neither: Fail — Interest -1, Patience -1';
+      break;
+    case 'neut-partial':
+      patienceDelta = -1;
+      desc = 'Appeal Neither: Partial — Patience -1';
+      break;
+    case 'neut-success':
+      interestDelta = 1; patienceDelta = -1;
+      desc = 'Appeal Neither: Success — Interest +1, Patience -1';
+      break;
+  }
+
+  // Lying stacks
+  if (lying && interestDelta <= 0 && !action.startsWith('read')) {
+    interestDelta -= 1;
+    desc += ' + LIE CAUGHT: Interest -1';
+    reactionKey = 'lie-caught';
+  }
+
+  state.interest = clamp(state.interest + interestDelta, 0, 5);
+  state.patience = clamp(state.patience + patienceDelta, 0, 5);
+  addLog(desc, '');
+  document.getElementById('lyingCheck').checked = false;
+
+  // Show reaction text
+  const enc = state.encounter;
+  if (enc && enc.reactions) {
+    const reaction = enc.reactions[reactionKey];
+    if (reaction) {
+      const labels = {
+        'read-fail': 'Get a Read: Failure',
+        'read-partial': 'Get a Read: Partial',
+        'read-success': 'Get a Read: Success',
+        'mot-fail': 'Appeal to Motivation: Failure',
+        'mot-partial': 'Appeal to Motivation: Partial Success',
+        'mot-success': 'Appeal to Motivation: Success',
+        'neut-fail': 'Appeal to Neither: Failure',
+        'neut-partial': 'Appeal to Neither: Partial',
+        'neut-success': 'Appeal to Neither: Success',
+        'lie-caught': 'Lie Caught!',
+      };
+      showNarrator(labels[reactionKey] || reactionKey, reaction);
+    }
+  }
+
+  // Show reveal panel for read success
+  if (action === 'read-success') {
+    showRevealPanel();
+  }
+
+  render();
+}
+
+function showPitfallChooser(pitfalls) {
+  const chooser = document.getElementById('pitfallChooser');
+  const choices = document.getElementById('pitfallChoices');
+  choices.innerHTML = '';
+  pitfalls.forEach(([trait]) => {
+    const btn = document.createElement('button');
+    btn.className = 'pitfall-choose-btn';
+    btn.textContent = trait;
+    btn.onclick = () => { hidePitfallChooser(); resolvePitfall(trait); };
+    choices.appendChild(btn);
+  });
+  chooser.classList.add('show');
+}
+
+function resolvePitfall(traitName) {
+  saveUndo();
+  state.interest = clamp(state.interest - 1, 0, 5);
+  state.patience = clamp(state.patience - 1, 0, 5);
+  const label = traitName ? `Pitfall (${traitName})` : 'Pitfall';
+  addLog(`${label}: Auto-fail — Interest -1, Patience -1`, '');
+
+  // Show specific pitfall reaction
+  const enc = state.encounter;
+  if (enc && enc.reactions) {
+    const specific = traitName ? enc.reactions[`pitfall-${traitName}`] : null;
+    const generic = enc.reactions['pitfall'];
+    showNarrator(`Appeal to Pitfall: ${traitName || 'Auto-Fail'}`, specific || generic || 'The NPC is offended.');
+  }
+
+  document.getElementById('lyingCheck').checked = false;
+  render();
+}
+
+// ─── RENDER ────────────────────────────────────────────
+
+function render() {
+  renderPips();
+  renderOutcomes();
+  renderTraits();
+  renderLog();
+  checkEndState();
+}
+
+function renderPips() {
+  ['interest', 'patience'].forEach(stat => {
+    const container = document.getElementById(stat + 'Pips');
+    container.innerHTML = '';
+    const val = state[stat];
+    const cls = stat === 'interest' ? 'interest-pip' : 'patience-pip';
+    for (let i = 0; i <= 5; i++) {
+      const d = document.createElement('div');
+      d.className = `pip ${cls}${i <= val ? ' active' : ''}`;
+      d.textContent = i;
+      d.onclick = () => { saveUndo(); state[stat] = i; addLog(`Set ${stat}`, i); render(); };
+      container.appendChild(d);
+    }
+  });
+}
+
+function renderOutcomes() {
+  const container = document.getElementById('outcomesList');
+  container.innerHTML = '';
+  for (let i = 5; i >= 0; i--) {
+    const row = document.createElement('div');
+    row.className = `outcome-row outcome-${i}${i === state.interest ? ' current' : ''}`;
+
+    const hasNarration = state.encounter && state.encounter.outcomeNarrations && state.encounter.outcomeNarrations[i];
+
+    row.innerHTML = `
+      <span class="outcome-level">${i}</span>
+      <span class="outcome-label">${OUTCOMES[i].label}</span>
+      <textarea class="outcome-desc" rows="1"
+        placeholder="What does this outcome look like?"
+        oninput="autoResize(this); state.outcomes[${i}] = this.value;"
+      >${state.outcomes[i]}</textarea>
+      <span class="outcome-narration-icon ${hasNarration ? '' : 'no-narration'}"
+            onclick="event.stopPropagation(); showOutcomeNarration(${i})"
+            title="Show read-aloud narration">&#9658;</span>
+    `;
+    container.appendChild(row);
+    const ta = row.querySelector('textarea');
+    setTimeout(() => autoResize(ta), 0);
+  }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+function renderTraits() {
+  const grid = document.getElementById('traitsGrid');
+  grid.innerHTML = '';
+  const allTraits = [...TRAITS, ...Object.keys(state.traits).filter(t => !TRAITS.includes(t))];
+
+  allTraits.forEach(trait => {
+    const val = state.traits[trait] || null;
+    const used = state.usedMotivations.has(trait);
+    const revealed = state.revealedTraits.has(trait);
+
+    // Motivation button
+    const mBtn = document.createElement('button');
+    mBtn.className = 'trait-btn';
+    if (val === 'motivation') {
+      mBtn.classList.add('motivation');
+      if (used) mBtn.classList.add('used');
+      if (revealed) mBtn.classList.add('revealed');
+      mBtn.textContent = used ? 'Used' : 'Mot';
+      mBtn.onclick = () => {
+        if (used) state.usedMotivations.delete(trait);
+        else state.traits[trait] = null;
+        render();
+      };
+    } else {
+      mBtn.textContent = 'M';
+      mBtn.onclick = () => { state.traits[trait] = 'motivation'; render(); };
+    }
+
+    // Name
+    const name = document.createElement('span');
+    name.className = 'trait-name';
+    name.textContent = trait;
+    if (val === 'motivation') name.style.color = 'var(--green)';
+    if (val === 'pitfall') name.style.color = 'var(--red)';
+    if (revealed) name.style.textDecoration = 'underline';
+    if (revealed) name.style.textDecorationColor = 'var(--purple)';
+
+    // Pitfall button
+    const pBtn = document.createElement('button');
+    pBtn.className = 'trait-btn';
+    if (val === 'pitfall') {
+      pBtn.classList.add('pitfall');
+      if (revealed) pBtn.classList.add('revealed');
+      pBtn.textContent = 'Pit';
+      pBtn.onclick = () => { state.traits[trait] = null; render(); };
+    } else {
+      pBtn.textContent = 'P';
+      pBtn.onclick = () => { state.traits[trait] = 'pitfall'; render(); };
+    }
+
+    grid.appendChild(mBtn);
+    grid.appendChild(name);
+    grid.appendChild(pBtn);
+  });
+}
+
+let customCount = 0;
+function addCustomTrait() {
+  const name = prompt('Trait name:');
+  if (!name) return;
+  state.traits[name] = null;
+  render();
+}
+
+function renderLog() {
+  const container = document.getElementById('logEntries');
+  if (state.log.length === 0) {
+    container.innerHTML = '<div class="log-entry" style="font-style: italic;">Negotiation hasn\'t started yet.</div>';
+    return;
+  }
+  container.innerHTML = state.log.map(entry =>
+    `<div class="log-entry"><span style="color:var(--text)">${entry.action}</span> ${entry.detail}</div>`
+  ).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function addLog(action, detail) {
+  state.log.push({ action, detail: `${detail} (I:${state.interest} P:${state.patience})` });
+}
+
+function checkEndState() {
+  const banner = document.getElementById('endBanner');
+  if (state.patience <= 0) {
+    banner.className = 'end-banner show patience-zero';
+    banner.innerHTML = `Patience exhausted! Final offer at Interest ${state.interest}: <strong>${OUTCOMES[state.interest].label}</strong>`;
+    if (state.encounter && state.encounter.outcomeNarrations) {
+      banner.innerHTML += `<br><button class="outcome-narration-btn" onclick="showOutcomeNarration(${state.interest})">&#9658; Show read-aloud narration</button>`;
+    }
+  } else if (state.interest >= 5) {
+    banner.className = 'end-banner show interest-max';
+    banner.innerHTML = `Full agreement! <strong>${OUTCOMES[5].label}</strong>`;
+    if (state.encounter && state.encounter.outcomeNarrations) {
+      banner.innerHTML += `<br><button class="outcome-narration-btn" onclick="showOutcomeNarration(5)">&#9658; Show read-aloud narration</button>`;
+    }
+  } else {
+    banner.className = 'end-banner';
+  }
+}
+
+// ─── ENCOUNTER LOADING ─────────────────────────────────
+
+function loadEncounter() {
+  const enc = window.ENCOUNTER_DATA;
+  if (!enc) return;
+  state.encounter = enc;
+
+  // Set NPC info
+  document.getElementById('npcName').value = enc.npc.name + (enc.npc.title ? ` — ${enc.npc.title}` : '');
+  document.getElementById('request').value = enc.request || '';
+
+  // Set attitude
+  if (enc.npc.attitude) {
+    document.getElementById('attitude').value = enc.npc.attitude;
+    const att = ATTITUDES[enc.npc.attitude];
+    if (att) { state.interest = att.interest; state.patience = att.patience; }
+  }
+
+  // Set traits
+  TRAITS.forEach(t => state.traits[t] = null);
+  (enc.motivations || []).forEach(t => state.traits[t] = 'motivation');
+  (enc.pitfalls || []).forEach(t => state.traits[t] = 'pitfall');
+
+  // Set outcomes
+  if (enc.outcomes) {
+    for (let i = 0; i < 6; i++) {
+      state.outcomes[i] = enc.outcomes[i] || '';
+    }
+  }
+
+  // Store narrations
+  state.outcomeNarrations = enc.outcomeNarrations || [];
+
+  // Reset play state
+  state.usedMotivations = new Set();
+  state.revealedTraits = new Set();
+  state.history = [];
+  state.log = [];
+
+  // Build scene tabs
+  buildSceneTabs();
+
+  addLog('Encounter loaded', enc.npc.name);
+  render();
+
+  // Show first scene
+  const sceneKeys = Object.keys(enc.scenes || {});
+  if (sceneKeys.length > 0) showScene(sceneKeys[0]);
+}
+
+function toggleTables() {
+  document.getElementById('tablesContent').classList.toggle('open');
+  document.getElementById('tablesArrow').classList.toggle('open');
+}
+
+function toggleMod(btn) { btn.classList.toggle('active'); }
+
+function resetAll() {
+  if (state.log.length > 0 && !confirm('Start a new negotiation? Current state will be lost.')) return;
+  state.interest = 2; state.patience = 3;
+  state.usedMotivations = new Set();
+  state.revealedTraits = new Set();
+  state.outcomes = ['', '', '', '', '', ''];
+  state.outcomeNarrations = [];
+  state.history = []; state.log = [];
+  state.encounter = null;
+  TRAITS.forEach(t => state.traits[t] = null);
+  Object.keys(state.traits).forEach(t => { if (!TRAITS.includes(t)) delete state.traits[t]; });
+  customCount = 0;
+  document.getElementById('npcName').value = '';
+  document.getElementById('request').value = '';
+  document.getElementById('attitude').value = '';
+  document.querySelectorAll('.mod-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('lyingCheck').checked = false;
+  document.getElementById('endBanner').className = 'end-banner';
+  document.getElementById('narratorText').textContent = '';
+  document.getElementById('narratorText').style.display = 'none';
+  document.getElementById('narratorHint').style.display = 'block';
+  document.getElementById('narratorLabel').textContent = '';
+  document.getElementById('sceneTabs').innerHTML = '';
+  hideRevealPanel();
+  hidePitfallChooser();
+  render();
+}
+
+// Attitude selector
+document.getElementById('attitude').addEventListener('change', function() {
+  const att = ATTITUDES[this.value];
+  if (!att) return;
+  saveUndo();
+  state.interest = att.interest;
+  state.patience = att.patience;
+  document.querySelectorAll('.mod-btn.active').forEach(btn => {
+    const mod = btn.dataset.mod;
+    if (mod === 'infamous') state.interest = clamp(state.interest - 1, 0, 5);
+    if (mod === 'famous') state.patience = clamp(state.patience + 1, 0, 5);
+    if (mod === 'lang1') state.patience = clamp(state.patience + 1, 0, 5);
+    if (mod === 'lang3') state.patience = clamp(state.patience + 2, 0, 5);
+  });
+  addLog(`Attitude: ${this.value}`, `I:${state.interest} P:${state.patience}`);
+  render();
+});
+
+// ─── INIT ──────────────────────────────────────────────
+
+render();
+
+// Auto-load encounter if available
+if (window.ENCOUNTER_DATA) {
+  document.getElementById('loadBtn').style.display = 'inline-block';
+  loadEncounter();
+}
+</script>
+
+</body>
+</html>

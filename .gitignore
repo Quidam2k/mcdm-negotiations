@@ -1,0 +1,5 @@
+# Copyrighted reference material (video transcripts, tracker PDFs, audio)
+reference/
+
+# Claude Code local settings
+.claude/
