@@ -42,11 +42,14 @@
     padding: 0.3rem 0.5rem; border-radius: 4px; font-size: 0.9rem;
   }
   .field input:focus, .field select:focus { outline: none; border-color: var(--gold); }
+  #encounterSelect { width: 200px; cursor: pointer; }
   #npcName { width: 180px; }
   #attitude { width: 130px; cursor: pointer; }
   .request-field { flex: 1 1 300px; }
   .request-field input { width: 100%; }
   .topbar-actions { display: flex; gap: 0.5rem; margin-left: auto; }
+  .btn-player { border-color: var(--purple); color: var(--purple); }
+  .btn-player:hover { background: #b388ff15; }
 
   /* ─── Buttons ─── */
   .btn {
@@ -277,11 +280,16 @@
 </head>
 <body>
 
-<!-- Encounter script (loaded before main logic) -->
-<script src="encounters/wands_light_project.js"></script>
-
 <div class="topbar">
   <h1>Negotiation Tracker</h1>
+  <div class="field">
+    <label for="encounterSelect">Encounter</label>
+    <select id="encounterSelect" onchange="switchEncounter(this.value)">
+      <option value="">— None —</option>
+      <option value="encounters/wands_light_project.js">Wands Light Project</option>
+      <option value="encounters/vampire_lair_portal.js">Vampire Lair Portal</option>
+    </select>
+  </div>
   <div class="field">
     <label for="npcName">NPC</label>
     <input type="text" id="npcName" placeholder="Name...">
@@ -303,7 +311,7 @@
     <input type="text" id="request" placeholder="The party's plausible request...">
   </div>
   <div class="topbar-actions">
-    <button class="btn" onclick="loadEncounter()" id="loadBtn" style="display:none;">Load Encounter</button>
+    <button class="btn btn-player" onclick="openPlayerView()" title="Open read-only player view">Player View</button>
     <button class="btn" onclick="undoLast()" title="Undo last action">Undo</button>
     <button class="btn btn-danger" onclick="resetAll()">New</button>
   </div>
@@ -327,7 +335,7 @@
   <!-- Stats -->
   <div class="panel stats-panel">
     <div class="stat-tracker">
-      <h2 style="color: var(--gold);">Interest</h2>
+      <h2 style="color: var(--gold);" data-tip="NPC willingness (0-5). Reaches 5 = full agreement. Goes up from successful motivation appeals, down from pitfalls and failed arguments.">Interest</h2>
       <div class="stat-pips" id="interestPips"></div>
       <div class="stat-buttons">
         <button class="stat-btn" onclick="adjustStat('interest', -1)">-</button>
@@ -335,7 +343,7 @@
       </div>
     </div>
     <div class="stat-tracker">
-      <h2 style="color: var(--blue);">Patience</h2>
+      <h2 style="color: var(--blue);" data-tip="NPC willingness to keep talking (0-5). Only goes DOWN. Hits 0 = negotiation ends, final offer at current Interest.">Patience</h2>
       <div class="stat-pips" id="patiencePips"></div>
       <div class="stat-buttons">
         <button class="stat-btn" onclick="adjustStat('patience', -1)">-</button>
@@ -861,6 +869,7 @@ function render() {
   renderTraits();
   renderLog();
   checkEndState();
+  if (typeof broadcastState === 'function') broadcastState();
 }
 
 function renderPips() {
@@ -1112,15 +1121,87 @@ document.getElementById('attitude').addEventListener('change', function() {
   render();
 });
 
+// ─── ENCOUNTER SWITCHER ───────────────────────────────
+
+function switchEncounter(src) {
+  if (!src) return;
+  if (state.log.length > 0 && !confirm('Load a different encounter? Current state will be lost.')) {
+    document.getElementById('encounterSelect').value = state._loadedSrc || '';
+    return;
+  }
+  // Remove previous encounter script if any
+  const old = document.getElementById('encounterScript');
+  if (old) old.remove();
+  window.ENCOUNTER_DATA = null;
+
+  const script = document.createElement('script');
+  script.id = 'encounterScript';
+  script.src = src;
+  script.onload = function() {
+    if (window.ENCOUNTER_DATA) {
+      resetAll();
+      state._loadedSrc = src;
+      loadEncounter();
+    }
+  };
+  document.head.appendChild(script);
+}
+
+// ─── PLAYER VIEW BROADCAST ────────────────────────────
+
+let playerWindow = null;
+
+function openPlayerView() {
+  playerWindow = window.open('player.html', 'negotiation-player', 'width=700,height=800');
+  if (playerWindow) {
+    playerWindow.addEventListener('load', () => broadcastState());
+    setTimeout(() => broadcastState(), 500);
+  }
+}
+
+function broadcastState() {
+  const revealedTraits = [];
+  for (const trait of state.revealedTraits) {
+    const type = state.traits[trait] || null;
+    if (type === 'motivation' || type === 'pitfall') {
+      revealedTraits.push({
+        name: trait,
+        type,
+        used: state.usedMotivations.has(trait),
+      });
+    }
+  }
+
+  const outcomes = [];
+  for (let i = 0; i < 6; i++) {
+    outcomes.push({
+      level: i,
+      label: OUTCOMES[i].label,
+      description: state.outcomes[i] || '',
+    });
+  }
+
+  const payload = {
+    type: 'negotiation-update',
+    _ts: Date.now(),
+    npcName: document.getElementById('npcName').value || '',
+    request: document.getElementById('request').value || '',
+    interest: state.interest,
+    patience: state.patience,
+    revealedTraits,
+    outcomes,
+    patienceZero: state.patience <= 0,
+    interestMax: state.interest >= 5,
+  };
+
+  if (playerWindow && !playerWindow.closed) {
+    try { playerWindow.postMessage(payload, '*'); } catch(e) {}
+  }
+}
+
 // ─── INIT ──────────────────────────────────────────────
 
 render();
-
-// Auto-load encounter if available
-if (window.ENCOUNTER_DATA) {
-  document.getElementById('loadBtn').style.display = 'inline-block';
-  loadEncounter();
-}
 </script>
 
 </body>

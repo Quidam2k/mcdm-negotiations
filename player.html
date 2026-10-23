@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Negotiation — Player View</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --surface2: #0f3460;
+    --border: #334;
+    --text: #e0e0e0;
+    --text-dim: #888;
+    --gold: #f5c842;
+    --gold-dim: #7a6421;
+    --blue: #4fc3f7;
+    --green: #66bb6a;
+    --green-dim: #1b4332;
+    --red: #ef5350;
+    --red-dim: #7f2a2a;
+    --purple: #b388ff;
+    --orange: #ffa726;
+    --highlight: #f5c84233;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; padding: 1.5rem 2rem;
+  }
+  h1 { font-size: 1.3rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--gold); }
+  h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 0.5rem; }
+
+  .container { max-width: 800px; margin: 0 auto; }
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1rem; margin-bottom: 1rem;
+  }
+
+  /* ─── Header ─── */
+  .header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .view-label {
+    font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15em;
+    color: var(--text-dim); background: var(--surface2); padding: 0.2rem 0.5rem;
+    border-radius: 3px; border: 1px solid var(--border); margin-left: auto;
+  }
+  .request-text { font-size: 0.95rem; color: var(--text-dim); margin-top: 0.3rem; }
+  .request-text strong { color: var(--text); }
+
+  /* ─── Pips ─── */
+  .stats-row { display: flex; gap: 2.5rem; justify-content: center; flex-wrap: wrap; padding: 0.5rem 0; }
+  .stat-block { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+  .pips { display: flex; gap: 0.4rem; }
+  .pip {
+    width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-size: 1.1rem; font-weight: bold;
+    transition: all 0.2s; border: 2px solid transparent;
+  }
+  .interest-pip { background: var(--surface2); color: var(--surface2); }
+  .interest-pip.active { background: var(--green); color: #1a1a2e; box-shadow: 0 0 10px #66bb6a44; }
+  .patience-pip { background: var(--surface2); color: var(--surface2); }
+  .patience-pip.active { background: var(--blue); color: #1a1a2e; box-shadow: 0 0 10px #4fc3f744; }
+
+  /* ─── Revealed Traits ─── */
+  .traits-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .trait-pill {
+    padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.85rem;
+    display: flex; align-items: center; gap: 0.4rem; font-weight: 600;
+  }
+  .trait-pill.motivation {
+    background: var(--green-dim); color: var(--green);
+    border: 1px solid var(--green);
+  }
+  .trait-pill.motivation.used {
+    opacity: 0.45; text-decoration: line-through;
+  }
+  .trait-pill.pitfall {
+    background: var(--red-dim); color: var(--red);
+    border: 1px solid var(--red);
+  }
+  .trait-type {
+    font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.8;
+  }
+  .no-traits { font-size: 0.85rem; color: var(--text-dim); font-style: italic; }
+
+  /* ─── Outcomes ─── */
+  .outcomes-list { display: flex; flex-direction: column; gap: 0.3rem; }
+  .outcome-row {
+    display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.5rem;
+    border-radius: 6px; border: 1px solid transparent; transition: all 0.2s;
+  }
+  .outcome-row.current { background: var(--highlight); border-color: var(--gold); }
+  .outcome-level {
+    font-weight: bold; font-size: 1rem; width: 1.5rem; text-align: center;
+    flex-shrink: 0; color: var(--text-dim);
+  }
+  .outcome-row.current .outcome-level { color: var(--gold); }
+  .outcome-label {
+    font-size: 0.8rem; font-weight: bold; text-transform: uppercase;
+    flex-shrink: 0; width: 6rem; padding-top: 0.1rem;
+  }
+  .outcome-0 .outcome-label { color: var(--red); }
+  .outcome-1 .outcome-label { color: var(--red); }
+  .outcome-2 .outcome-label { color: var(--orange); }
+  .outcome-3 .outcome-label { color: var(--orange); }
+  .outcome-4 .outcome-label { color: var(--green); }
+  .outcome-5 .outcome-label { color: var(--green); }
+  .outcome-desc { font-size: 0.85rem; color: var(--text-dim); line-height: 1.3; }
+
+  /* ─── End banner ─── */
+  .end-banner {
+    display: none; text-align: center; padding: 1.2rem;
+    border-radius: 8px; font-size: 1.2rem; font-weight: bold; margin-bottom: 1rem;
+  }
+  .end-banner.show { display: block; }
+  .end-banner.patience-zero {
+    background: linear-gradient(135deg, var(--red-dim), var(--surface));
+    border: 2px solid var(--red); color: var(--red);
+  }
+  .end-banner.interest-max {
+    background: linear-gradient(135deg, var(--green-dim), var(--surface));
+    border: 2px solid var(--green); color: var(--green);
+  }
+
+  /* ─── Waiting ─── */
+  /* ─── Tooltips ─── */
+  [data-tip] { position: relative; cursor: help; }
+  [data-tip]::after {
+    content: attr(data-tip);
+    position: absolute; bottom: 120%; left: 50%; transform: translateX(-50%);
+    background: #111; color: var(--text); font-size: 0.75rem; line-height: 1.4;
+    padding: 0.4rem 0.6rem; border-radius: 4px; border: 1px solid var(--border);
+    white-space: normal; width: max-content; max-width: 280px;
+    pointer-events: none; opacity: 0; transition: opacity 0.15s;
+    z-index: 100; text-transform: none; letter-spacing: normal; font-weight: normal;
+  }
+  [data-tip]:hover::after { opacity: 1; }
+
+  .waiting { text-align: center; padding: 4rem 2rem; color: var(--text-dim); font-size: 1.1rem; }
+  .waiting h1 { margin-bottom: 1rem; font-size: 1.5rem; }
+  .spinner {
+    display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border);
+    border-top-color: var(--gold); border-radius: 50%;
+    animation: spin 1s linear infinite; margin-right: 0.5rem; vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="waiting" id="waitingState">
+    <h1>Negotiation Tracker</h1>
+    <p><span class="spinner"></span> Waiting for DM to load a negotiation...</p>
+    <p style="margin-top:1rem;font-size:0.85rem">This view updates automatically.</p>
+  </div>
+
+  <div id="content" style="display:none">
+
+    <!-- Header -->
+    <div class="header">
+      <h1 id="npcName">--</h1>
+      <span class="view-label">Player View</span>
+    </div>
+    <div class="panel" id="requestPanel" style="display:none">
+      <div class="request-text"><strong>Request:</strong> <span id="requestText"></span></div>
+    </div>
+
+    <!-- End banner -->
+    <div class="end-banner" id="endBanner"></div>
+
+    <!-- Stats -->
+    <div class="panel">
+      <div class="stats-row">
+        <div class="stat-block">
+          <h2 data-tip="How willing the NPC is to grant your request. Reaches 5 = full agreement. Goes up when you appeal to their motivations.">Interest</h2>
+          <div class="pips" id="interestPips"></div>
+        </div>
+        <div class="stat-block">
+          <h2 data-tip="How willing the NPC is to keep talking. Only goes down. Hits 0 = negotiation ends, NPC makes final offer based on current Interest.">Patience</h2>
+          <div class="pips" id="patiencePips"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Revealed Traits -->
+    <div class="panel" id="traitsPanel">
+      <h2 data-tip="Traits revealed via Get a Read checks. Motivations: appeal to these for best results. Pitfalls: avoid these — automatic failure if triggered.">What You Know</h2>
+      <div class="traits-row" id="traitsList">
+        <span class="no-traits">No traits revealed yet. Use Get a Read to learn what motivates or offends this NPC.</span>
+      </div>
+    </div>
+
+    <!-- Outcomes -->
+    <div class="panel">
+      <h2>Possible Outcomes</h2>
+      <div class="outcomes-list" id="outcomesList"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+
+window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'negotiation-update') {
+    renderFromState(e.data);
+  }
+});
+
+function renderFromState(s) {
+  document.getElementById('waitingState').style.display = 'none';
+  document.getElementById('content').style.display = 'block';
+
+  // Header
+  document.getElementById('npcName').textContent = s.npcName || '--';
+  if (s.request) {
+    document.getElementById('requestPanel').style.display = '';
+    document.getElementById('requestText').textContent = s.request;
+  } else {
+    document.getElementById('requestPanel').style.display = 'none';
+  }
+
+  // Interest pips
+  const iPips = document.getElementById('interestPips');
+  iPips.innerHTML = '';
+  for (let i = 0; i <= 5; i++) {
+    const pip = document.createElement('div');
+    pip.className = `pip interest-pip${i <= s.interest ? ' active' : ''}`;
+    pip.textContent = i;
+    iPips.appendChild(pip);
+  }
+
+  // Patience pips
+  const pPips = document.getElementById('patiencePips');
+  pPips.innerHTML = '';
+  for (let i = 0; i <= 5; i++) {
+    const pip = document.createElement('div');
+    pip.className = `pip patience-pip${i <= s.patience ? ' active' : ''}`;
+    pip.textContent = i;
+    pPips.appendChild(pip);
+  }
+
+  // Revealed traits
+  const traitsList = document.getElementById('traitsList');
+  if (s.revealedTraits && s.revealedTraits.length > 0) {
+    traitsList.innerHTML = '';
+    s.revealedTraits.forEach(t => {
+      const pill = document.createElement('div');
+      pill.className = `trait-pill ${t.type}${t.used ? ' used' : ''}`;
+      const typeLabel = t.type === 'motivation' ? 'Motivation' : 'Pitfall';
+      pill.innerHTML = `${t.name} <span class="trait-type">${typeLabel}</span>`;
+      traitsList.appendChild(pill);
+    });
+  } else {
+    traitsList.innerHTML = '<span class="no-traits">No traits revealed yet. Use Get a Read to learn what motivates or offends this NPC.</span>';
+  }
+
+  // Outcomes (5 down to 0)
+  const outcomesList = document.getElementById('outcomesList');
+  outcomesList.innerHTML = '';
+  for (let i = 5; i >= 0; i--) {
+    const o = s.outcomes[i] || { level: i, label: '', description: '' };
+    const row = document.createElement('div');
+    row.className = `outcome-row outcome-${i}${i === s.interest ? ' current' : ''}`;
+    row.innerHTML = `
+      <span class="outcome-level">${i}</span>
+      <span class="outcome-label">${o.label}</span>
+      <span class="outcome-desc">${o.description}</span>
+    `;
+    outcomesList.appendChild(row);
+  }
+
+  // End banner
+  const banner = document.getElementById('endBanner');
+  const OUTCOME_LABELS = ['No, and...', 'No', 'No, but...', 'Yes, but...', 'Yes', 'Yes, and...'];
+  if (s.patienceZero) {
+    banner.className = 'end-banner show patience-zero';
+    banner.textContent = `Patience exhausted! Final offer at Interest ${s.interest}: ${OUTCOME_LABELS[s.interest]}`;
+  } else if (s.interestMax) {
+    banner.className = 'end-banner show interest-max';
+    banner.textContent = `Full agreement! ${OUTCOME_LABELS[5]}`;
+  } else {
+    banner.className = 'end-banner';
+  }
+}
+
+</script>
+</body>
+</html>

@@ -3,3 +3,6 @@ reference/
 
 # Claude Code local settings
 .claude/
+
+# Private, party-specific encounter (names real PCs) - local only, never publish
+encounters/vampire_lair_portal.js
