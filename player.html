@@ -4,24 +4,48 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Negotiation — Player View</title>
+<script>try { document.documentElement.dataset.theme = localStorage.getItem('ledger-theme') || 'paper'; } catch (e) {}</script>
 <style>
+  @font-face { font-family: 'IM Fell Double Pica SC'; src: url('ledger-fonts/IMFellDoublePicaSC-Regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+  @font-face { font-family: 'Spectral'; src: url('ledger-fonts/Spectral-400.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+  @font-face { font-family: 'Spectral'; src: url('ledger-fonts/Spectral-400-italic.woff2') format('woff2'); font-weight: 400; font-style: italic; font-display: swap; }
+  @font-face { font-family: 'Spectral'; src: url('ledger-fonts/Spectral-700.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+  @font-face { font-family: 'Barlow Semi Condensed'; src: url('ledger-fonts/BarlowSemiCondensed-400.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+  @font-face { font-family: 'Barlow Semi Condensed'; src: url('ledger-fonts/BarlowSemiCondensed-500.woff2') format('woff2'); font-weight: 500; font-display: swap; }
+  @font-face { font-family: 'Barlow Semi Condensed'; src: url('ledger-fonts/BarlowSemiCondensed-600.woff2') format('woff2'); font-weight: 600 700; font-display: swap; }
+  /* ─── Field Ledger tokens (#9287): rag paper, iron-gall ink, one vermilion rubric.
+     The old variable names stay, re-pointed, so every rule below follows. ─── */
   :root {
-    --bg: #1a1a2e;
-    --surface: #16213e;
-    --surface2: #0f3460;
-    --border: #334;
-    --text: #e0e0e0;
-    --text-dim: #888;
-    --gold: #f5c842;
-    --gold-dim: #7a6421;
-    --blue: #4fc3f7;
-    --green: #66bb6a;
-    --green-dim: #1b4332;
-    --red: #ef5350;
-    --red-dim: #7f2a2a;
-    --purple: #b388ff;
-    --orange: #ffa726;
-    --highlight: #f5c84233;
+    --paper: #F1EADB; --paper-2: #E8DFCB; --rule-line: #B9AC93;
+    --ink: #2A231B; --ink-2: #574D3F; --ink-3: #635949;
+    --rubric: #A8321A; --wash: rgba(168, 50, 26, 0.08);
+    --tooth: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .28 0 0 0 0 .18 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
+    --display: 'IM Fell Double Pica SC', 'Iowan Old Style', Georgia, serif;
+    --read: 'Spectral', 'Iowan Old Style', Georgia, serif;
+    --mech: 'Barlow Semi Condensed', 'Arial Narrow', sans-serif;
+
+    --bg: var(--paper); --surface: var(--paper); --surface2: var(--paper-2);
+    --border: var(--rule-line); --text: var(--ink); --text-dim: var(--ink-3);
+    --gold: var(--ink); --gold-dim: #D6CBB4;           /* "active / current" is strong ink */
+    --red: var(--rubric); --red-dim: #EBCFC4;          /* failure, pitfall, danger: the rubric */
+    --green: #3B6235; --green-dim: #D5E0CC; --green-bright: #2E5229;
+    --blue: #2D4F6E; --blue-dim: #D3DCE3;              /* blue-black ink: patience, DCs */
+    --purple: var(--ink-2);
+    --orange: #8A5300; --orange-dim: #F0DDBD;
+    --teal: #2F5D50; --teal-dim: #D3E2DC;
+    --amber: #735400; --amber-dim: #E6DCB9;
+    --highlight: var(--wash);
+  }
+  :root[data-theme="candlelight"] {
+    --paper: #1F1A14; --paper-2: #29231B; --rule-line: #4F4535;
+    --ink: #E8DEC8; --ink-2: #CDBFA3; --ink-3: #B3A586;
+    --rubric: #EE8A66; --wash: rgba(238, 138, 102, 0.10); --tooth: none;
+    --gold-dim: #4A4033; --red-dim: #4A2A20;
+    --green: #9CC28F; --green-dim: #2C3A27; --green-bright: #B5D9A6;
+    --blue: #9DB9D6; --blue-dim: #26323F;
+    --orange: #E0A85A; --orange-dim: #3F2F18;
+    --teal: #8EC2AF; --teal-dim: #1F332D;
+    --amber: #D8BE6A; --amber-dim: #3A3320;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -145,6 +169,43 @@
     animation: spin 1s linear infinite; margin-right: 0.5rem; vertical-align: middle;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ─── Field Ledger overrides (#9287) ─── */
+  body { font-family: var(--mech); font-size: 16px; background-image: var(--tooth); -webkit-font-smoothing: antialiased; }
+  h1 { font-family: var(--display); font-weight: 400; font-size: 1.8rem; text-transform: none; letter-spacing: .01em; color: var(--ink); }
+  h2, h3 { color: var(--ink-3); font-weight: 600; letter-spacing: .16em; }
+  *, *::before, *::after { box-shadow: none !important; text-shadow: none !important; }
+  .panel, .btn, .badge, .scene-tab, .field input, .field select, .task-card, .skill-tag, .req-tag,
+  .ref-table, .progress-bar, .progress-fill, .end-banner, .outcome-row, .narrator-text, .stat-btn,
+  .view-label, .card, .section { border-radius: 0 !important; }
+  .panel { background: none; border: none; border-top: 2px solid var(--ink); padding: .7rem 0 .9rem; }
+  .btn { background: none; font-family: var(--mech); font-weight: 600; letter-spacing: .12em; }
+  .btn:hover, .btn.active, .btn-player:hover { background: var(--wash); }
+  .field input, .field select { background: var(--paper); font-family: var(--mech); font-size: .95rem; }
+  .narrator-text { font-family: var(--read); font-style: italic; font-size: 1.08rem; line-height: 1.6;
+    background: none; border: none; border-left: 2px solid var(--rubric); padding: .2rem 0 .2rem 1rem; }
+  .narrator-label { color: var(--rubric); font-weight: 600; letter-spacing: .14em; }
+  [data-tip]::after { background: var(--ink); color: var(--paper); border-color: var(--ink); border-radius: 0; font-family: var(--mech); }
+  .tables-toggle { font-family: var(--mech); font-weight: 600; }
+  .tables-toggle:hover { color: var(--rubric); }
+  .ref-table { background: none; }
+  .ref-table-row:nth-child(odd), .outcome-row:hover { background: var(--wash); }
+  .log-entry { border-bottom: 1px dotted var(--rule-line); }
+  .end-banner { font-family: var(--display); font-weight: 400; font-size: 1.5rem; }
+  .end-banner.victory, .end-banner.success { background: var(--green-dim); }
+  .end-banner.defeat, .end-banner.failure { background: var(--red-dim); }
+  .end-banner.deadline { background: var(--orange-dim); }
+  .ledger-theme-btn { font-size: .72rem; }
+  button, input, select, textarea { font-family: var(--mech); }
+  [class*="-btn"], [class*="-tag"], .deadline-btn { border-radius: 0 !important; }
+  .resource-btn { background: none; border-color: var(--teal); }
+  .challenge-btn { background: none; }
+  .fail-pip:not(.active), .pip:not(.active), .interest-pip:not(.active), .patience-pip:not(.active) {
+    background: none; border: 2px solid var(--rule-line); color: var(--ink-3); }
+
+  .interest-pip.active, .patience-pip.active { color: var(--paper); }
+  .trait, .trait-tag, .outcome-text { font-family: var(--read); }
+  .waiting .spinner { border-top-color: var(--rubric); }
 </style>
 </head>
 <body>
@@ -162,6 +223,7 @@
     <div class="header">
       <h1 id="npcName">--</h1>
       <span class="view-label">Player View</span>
+      <button class="view-label ledger-theme-btn" id="ledgerThemeBtn" onclick="toggleLedgerTheme()" style="cursor:pointer;background:none;margin-left:.5rem">Candlelight</button>
     </div>
     <div class="panel" id="requestPanel" style="display:none">
       <div class="request-text"><strong>Request:</strong> <span id="requestText"></span></div>
@@ -286,6 +348,19 @@ function renderFromState(s) {
   }
 }
 
+
+// ─── Field Ledger theme: paper / candlelight (#9287) ─────────────
+function toggleLedgerTheme() {
+  const t = document.documentElement.dataset.theme === 'candlelight' ? 'paper' : 'candlelight';
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem('ledger-theme', t); } catch (e) {}
+  updateLedgerThemeBtn();
+}
+function updateLedgerThemeBtn() {
+  const b = document.getElementById('ledgerThemeBtn');
+  if (b) b.textContent = document.documentElement.dataset.theme === 'candlelight' ? 'Paper' : 'Candlelight';
+}
+updateLedgerThemeBtn();
 </script>
 </body>
 </html>
